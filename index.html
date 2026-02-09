@@ -1,0 +1,2245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Progress Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: #1a1a24;
+            --bg-elevated: #22222e;
+            --text-primary: #ffffff;
+            --text-secondary: #8888a0;
+            --text-muted: #55556a;
+            --accent-blue: #6366f1;
+            --accent-purple: #a855f7;
+            --accent-pink: #ec4899;
+            --accent-green: #22c55e;
+            --accent-orange: #f97316;
+            --accent-cyan: #06b6d4;
+            --accent-red: #ef4444;
+            --border-color: rgba(255,255,255,0.08);
+            --shadow: 0 4px 24px rgba(0,0,0,0.4);
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            min-height: 100vh;
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+        
+        /* ===== PAGE SYSTEM ===== */
+        .page {
+            display: none;
+            min-height: 100vh;
+            padding: 20px;
+            padding-bottom: 100px;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .page.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* ===== BOTTOM NAV ===== */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0;
+            padding-bottom: max(10px, env(safe-area-inset-bottom));
+            z-index: 1000;
+        }
+        
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 8px 16px;
+            border: none;
+            background: none;
+            color: var(--text-muted);
+            font-size: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-radius: 12px;
+        }
+        
+        .nav-item.active {
+            color: var(--accent-blue);
+            background: rgba(99, 102, 241, 0.1);
+        }
+        
+        .nav-item span {
+            font-size: 22px;
+        }
+        
+        /* ===== HEADER ===== */
+        .page-header {
+            margin-bottom: 24px;
+            padding-top: 20px;
+        }
+        
+        .page-header h1 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        
+        .page-header p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+        
+        /* ===== DONUT PROGRESS ===== */
+        .donut-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .donut-card {
+            background: var(--bg-card);
+            border-radius: 24px;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .donut-card:active {
+            transform: scale(0.98);
+            background: var(--bg-elevated);
+        }
+        
+        .donut-container {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 12px;
+        }
+        
+        .donut {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: conic-gradient(
+                var(--donut-color) calc(var(--progress) * 3.6deg),
+                var(--bg-elevated) 0deg
+            );
+            position: relative;
+        }
+        
+        .donut::before {
+            content: '';
+            position: absolute;
+            width: 70px;
+            height: 70px;
+            background: var(--bg-card);
+            border-radius: 50%;
+        }
+        
+        .donut-value {
+            position: relative;
+            z-index: 1;
+            font-size: 20px;
+            font-weight: 700;
+        }
+        
+        .donut-label {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .donut-sublabel {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        /* ===== CARDS ===== */
+        .card {
+            background: var(--bg-card);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 16px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        
+        .card-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .card-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+        
+        /* ===== BUTTONS ===== */
+        .btn {
+            padding: 14px 24px;
+            border-radius: 14px;
+            border: none;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .btn:active {
+            transform: scale(0.98);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: var(--bg-elevated);
+            color: var(--text-primary);
+        }
+        
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-secondary);
+            padding: 10px;
+        }
+        
+        .btn-sm {
+            padding: 10px 16px;
+            font-size: 14px;
+            border-radius: 10px;
+        }
+        
+        .btn-icon {
+            width: 44px;
+            height: 44px;
+            padding: 0;
+            border-radius: 12px;
+        }
+        
+        /* ===== INPUTS ===== */
+        .input-group {
+            margin-bottom: 16px;
+        }
+        
+        .input-label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .input {
+            width: 100%;
+            padding: 14px 16px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+        
+        .input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            background: var(--bg-secondary);
+        }
+        
+        .input::placeholder {
+            color: var(--text-muted);
+        }
+        
+        textarea.input {
+            resize: none;
+            min-height: 100px;
+            font-family: inherit;
+        }
+        
+        /* ===== COUNTER ===== */
+        .counter {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            justify-content: center;
+        }
+        
+        .counter-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .counter-btn.minus {
+            background: var(--bg-elevated);
+            color: var(--text-secondary);
+        }
+        
+        .counter-btn.plus {
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            color: white;
+        }
+        
+        .counter-value {
+            font-size: 36px;
+            font-weight: 700;
+            min-width: 80px;
+            text-align: center;
+        }
+        
+        .counter-unit {
+            font-size: 16px;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+        
+        /* ===== TABS ===== */
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-color);
+            border-radius: 100px;
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+        
+        .tab.active {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+            color: white;
+        }
+        
+        /* ===== LIST ITEMS ===== */
+        .list-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px;
+            background: var(--bg-elevated);
+            border-radius: 16px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .list-item:active {
+            background: var(--bg-card);
+        }
+        
+        .list-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+        }
+        
+        .list-content {
+            flex: 1;
+        }
+        
+        .list-title {
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+        
+        .list-subtitle {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        
+        .list-arrow {
+            color: var(--text-muted);
+            font-size: 20px;
+        }
+        
+        /* ===== STATUS BADGES ===== */
+        .badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 100px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .badge-pending { background: rgba(249, 115, 22, 0.2); color: var(--accent-orange); }
+        .badge-interview { background: rgba(34, 197, 94, 0.2); color: var(--accent-green); }
+        .badge-rejected { background: rgba(239, 68, 68, 0.2); color: var(--accent-red); }
+        .badge-offer { background: rgba(99, 102, 241, 0.2); color: var(--accent-blue); }
+        .badge-applied { background: rgba(136, 136, 160, 0.2); color: var(--text-secondary); }
+        
+        /* ===== MODAL ===== */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+        
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .modal {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--bg-secondary);
+            border-radius: 24px 24px 0 0;
+            padding: 24px;
+            padding-bottom: max(24px, env(safe-area-inset-bottom));
+            z-index: 2001;
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .modal.active {
+            transform: translateY(0);
+        }
+        
+        .modal-handle {
+            width: 40px;
+            height: 4px;
+            background: var(--text-muted);
+            border-radius: 2px;
+            margin: 0 auto 20px;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .modal-header h3 {
+            font-size: 20px;
+            font-weight: 700;
+        }
+        
+        .modal-close {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--bg-elevated);
+            border: none;
+            color: var(--text-secondary);
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* ===== HISTORY ===== */
+        .history-date {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin: 20px 0 12px;
+            padding-left: 4px;
+        }
+        
+        .history-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .history-summary {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .history-stat {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        
+        .history-stat span {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        /* ===== SECTION HEADERS ===== */
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        /* ===== EMPTY STATE ===== */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-secondary);
+        }
+        
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        
+        /* ===== QUICK LOG ENTRY ===== */
+        .quick-entry {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1));
+            border: 1px dashed var(--accent-blue);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .quick-entry h4 {
+            margin-bottom: 16px;
+            color: var(--accent-blue);
+        }
+        
+        /* ===== JOB APP TABLE ===== */
+        .job-app-item {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .job-app-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+        
+        .job-company {
+            font-weight: 600;
+            font-size: 16px;
+        }
+        
+        .job-position {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+        
+        .job-date {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        
+        /* ===== SETTINGS ===== */
+        .settings-section {
+            margin-bottom: 32px;
+        }
+        
+        .settings-title {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+        }
+        
+        .settings-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            background: var(--bg-card);
+            border-radius: 14px;
+            margin-bottom: 8px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .settings-item-label {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .delete-btn {
+            color: var(--accent-red);
+            background: rgba(239, 68, 68, 0.1);
+            border: none;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        
+        /* ===== STUDY MODULE ===== */
+        .module-chip {
+            display: inline-block;
+            padding: 6px 14px;
+            background: var(--bg-elevated);
+            border-radius: 100px;
+            font-size: 13px;
+            margin-right: 8px;
+            margin-bottom: 8px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .module-chip.active {
+            background: var(--accent-purple);
+            border-color: var(--accent-purple);
+            color: white;
+        }
+
+        /* ===== HOME MENU CARDS ===== */
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .menu-card {
+            background: var(--bg-card);
+            border-radius: 24px;
+            padding: 24px 20px;
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .menu-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--card-accent);
+        }
+        
+        .menu-card:active {
+            transform: scale(0.98);
+        }
+        
+        .menu-card-icon {
+            font-size: 32px;
+            margin-bottom: 12px;
+        }
+        
+        .menu-card-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .menu-card-stat {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        
+        .menu-card.full-width {
+            grid-column: span 2;
+        }
+        
+        /* ===== SPECIFIC COLORS ===== */
+        .color-work { --card-accent: var(--accent-blue); --donut-color: var(--accent-blue); }
+        .color-study { --card-accent: var(--accent-purple); --donut-color: var(--accent-purple); }
+        .color-gym { --card-accent: var(--accent-green); --donut-color: var(--accent-green); }
+        .color-water { --card-accent: var(--accent-cyan); --donut-color: var(--accent-cyan); }
+        .color-jobs { --card-accent: var(--accent-orange); --donut-color: var(--accent-orange); }
+        .color-custom { --card-accent: var(--accent-pink); --donut-color: var(--accent-pink); }
+
+        /* Week dots */
+        .week-dots {
+            display: flex;
+            gap: 6px;
+            margin-top: 12px;
+        }
+        
+        .week-dot {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: var(--bg-elevated);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+        
+        .week-dot.completed {
+            background: var(--accent-green);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <!-- ===== HOME PAGE ===== -->
+    <div class="page active" id="page-home">
+        <div class="page-header">
+            <h1>👋 Good Day!</h1>
+            <p id="homeDate">Loading...</p>
+        </div>
+        
+        <div class="section-header">
+            <span class="section-title">Quick Overview</span>
+        </div>
+        
+        <div class="donut-grid" id="homeDonutGrid">
+            <!-- Filled by JS -->
+        </div>
+        
+        <div class="section-header">
+            <span class="section-title">Categories</span>
+            <button class="btn btn-ghost" onclick="showPage('settings')">⚙️</button>
+        </div>
+        
+        <div class="menu-grid">
+            <div class="menu-card color-work" onclick="showPage('work')" style="--card-accent: var(--accent-blue)">
+                <div class="menu-card-icon">💼</div>
+                <div class="menu-card-title">Work</div>
+                <div class="menu-card-stat" id="workStat">0h today</div>
+            </div>
+            
+            <div class="menu-card color-study" onclick="showPage('study')" style="--card-accent: var(--accent-purple)">
+                <div class="menu-card-icon">📚</div>
+                <div class="menu-card-title">Study</div>
+                <div class="menu-card-stat" id="studyStat">0h today</div>
+            </div>
+            
+            <div class="menu-card color-gym" onclick="showPage('gym')" style="--card-accent: var(--accent-green)">
+                <div class="menu-card-icon">🏋️</div>
+                <div class="menu-card-title">Gym</div>
+                <div class="menu-card-stat" id="gymStat">0/4 this week</div>
+            </div>
+            
+            <div class="menu-card color-jobs" onclick="showPage('jobs')" style="--card-accent: var(--accent-orange)">
+                <div class="menu-card-icon">📨</div>
+                <div class="menu-card-title">Job Apps</div>
+                <div class="menu-card-stat" id="jobsStat">0 sent</div>
+            </div>
+        </div>
+        
+        <div id="customCategories"></div>
+        
+        <button class="btn btn-secondary" style="width: 100%;" onclick="openAddCategory()">
+            + Add Category
+        </button>
+    </div>
+
+    <!-- ===== WORK PAGE ===== -->
+    <div class="page" id="page-work">
+        <div class="page-header">
+            <button class="btn btn-ghost" onclick="showPage('home')" style="margin-left: -10px; margin-bottom: 10px;">← Back</button>
+            <h1>💼 Work</h1>
+            <p>Track your productive hours</p>
+        </div>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="switchWorkTab('log')">Today</button>
+            <button class="tab" onclick="switchWorkTab('stats')">Stats</button>
+        </div>
+        
+        <div id="work-tab-log">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <div class="card-icon" style="background: rgba(99, 102, 241, 0.2);">🏠</div>
+                        Remote Work
+                    </div>
+                    <span id="workRemoteGoal" style="color: var(--text-secondary); font-size: 14px;">/ 4h</span>
+                </div>
+                <div class="counter">
+                    <button class="counter-btn minus" onclick="updateTracker('workRemote', -0.5)">−</button>
+                    <div class="counter-value">
+                        <span id="workRemoteValue">0</span>
+                        <span class="counter-unit">h</span>
+                    </div>
+                    <button class="counter-btn plus" onclick="updateTracker('workRemote', 0.5)">+</button>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <div class="card-icon" style="background: rgba(99, 102, 241, 0.2);">🏢</div>
+                        Office Work
+                    </div>
+                    <span id="workOfficeGoal" style="color: var(--text-secondary); font-size: 14px;">/ 4h</span>
+                </div>
+                <div class="counter">
+                    <button class="counter-btn minus" onclick="updateTracker('workOffice', -0.5)">−</button>
+                    <div class="counter-value">
+                        <span id="workOfficeValue">0</span>
+                        <span class="counter-unit">h</span>
+                    </div>
+                    <button class="counter-btn plus" onclick="updateTracker('workOffice', 0.5)">+</button>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="input-group">
+                    <label class="input-label">What did you work on today?</label>
+                    <textarea class="input" id="workNotes" placeholder="Describe your tasks and achievements..."></textarea>
+                </div>
+                <button class="btn btn-primary" style="width: 100%;" onclick="saveWorkNotes()">Save Notes</button>
+            </div>
+        </div>
+        
+        <div id="work-tab-stats" style="display: none;">
+            <div class="card">
+                <h4 style="margin-bottom: 16px;">This Week</h4>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+                    <div style="text-align: center; padding: 16px; background: var(--bg-elevated); border-radius: 12px;">
+                        <div style="font-size: 28px; font-weight: 700;" id="workWeekTotal">0h</div>
+                        <div style="font-size: 12px; color: var(--text-secondary);">Total Hours</div>
+                    </div>
+                    <div style="text-align: center; padding: 16px; background: var(--bg-elevated); border-radius: 12px;">
+                        <div style="font-size: 28px; font-weight: 700;" id="workWeekAvg">0h</div>
+                        <div style="font-size: 12px; color: var(--text-secondary);">Daily Avg</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== STUDY PAGE ===== -->
+    <div class="page" id="page-study">
+        <div class="page-header">
+            <button class="btn btn-ghost" onclick="showPage('home')" style="margin-left: -10px; margin-bottom: 10px;">← Back</button>
+            <h1>📚 Study</h1>
+            <p>Track your learning progress</p>
+        </div>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="switchStudyTab('log')">Today</button>
+            <button class="tab" onclick="switchStudyTab('modules')">Modules</button>
+        </div>
+        
+        <div id="study-tab-log">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <div class="card-icon" style="background: rgba(168, 85, 247, 0.2);">⏱️</div>
+                        Study Time
+                    </div>
+                    <span id="studyGoalDisplay" style="color: var(--text-secondary); font-size: 14px;">/ 3h</span>
+                </div>
+                <div class="counter">
+                    <button class="counter-btn minus" onclick="updateTracker('study', -0.5)">−</button>
+                    <div class="counter-value">
+                        <span id="studyValue">0</span>
+                        <span class="counter-unit">h</span>
+                    </div>
+                    <button class="counter-btn plus" onclick="updateTracker('study', 0.5)">+</button>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="input-group">
+                    <label class="input-label">Active Module</label>
+                    <select class="input" id="studyModule">
+                        <option value="">Select module...</option>
+                    </select>
+                </div>
+                
+                <div class="input-group">
+                    <label class="input-label">What did you learn today?</label>
+                    <textarea class="input" id="studyNotes" placeholder="Topics covered, concepts learned, exercises completed..."></textarea>
+                </div>
+                
+                <button class="btn btn-primary" style="width: 100%;" onclick="saveStudyEntry()">Save Entry</button>
+            </div>
+            
+            <div class="section-header" style="margin-top: 24px;">
+                <span class="section-title">Recent Entries</span>
+            </div>
+            <div id="studyHistory"></div>
+        </div>
+        
+        <div id="study-tab-modules" style="display: none;">
+            <div class="card">
+                <div class="section-header">
+                    <span class="section-title">Your Modules</span>
+                    <button class="btn btn-sm btn-secondary" onclick="openAddModule()">+ Add</button>
+                </div>
+                <div id="modulesList"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== GYM PAGE ===== -->
+    <div class="page" id="page-gym">
+        <div class="page-header">
+            <button class="btn btn-ghost" onclick="showPage('home')" style="margin-left: -10px; margin-bottom: 10px;">← Back</button>
+            <h1>🏋️ Gym</h1>
+            <p>Track workouts & PRs</p>
+        </div>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="switchGymTab('week')">This Week</button>
+            <button class="tab" onclick="switchGymTab('prs')">PRs</button>
+            <button class="tab" onclick="switchGymTab('program')">Program</button>
+            <button class="tab" onclick="switchGymTab('log')">Log</button>
+        </div>
+        
+        <div id="gym-tab-week">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Weekly Progress</div>
+                    <span style="color: var(--text-secondary);"><span id="gymWeekCount">0</span>/4 workouts</span>
+                </div>
+                <div class="week-dots" id="gymWeekDots"></div>
+                <button class="btn btn-primary" style="width: 100%; margin-top: 16px;" onclick="markGymDay()">
+                    ✓ Mark Today's Workout
+                </button>
+            </div>
+        </div>
+        
+        <div id="gym-tab-prs" style="display: none;">
+            <div id="prCards"></div>
+        </div>
+        
+        <div id="gym-tab-program" style="display: none;">
+            <div class="card" id="programCard"></div>
+            <button class="btn btn-secondary" style="width: 100%;" onclick="openEditProgram()">
+                ✏️ Edit Program
+            </button>
+        </div>
+        
+        <div id="gym-tab-log" style="display: none;">
+            <div class="quick-entry">
+                <h4>📝 Log Workout</h4>
+                <div class="input-group">
+                    <label class="input-label">How was it?</label>
+                    <div class="tabs" id="workoutRating" style="margin-bottom: 0;"></div>
+                </div>
+                <div class="input-group">
+                    <label class="input-label">Notes</label>
+                    <textarea class="input" id="gymLogNotes" placeholder="Exercises, weights, how you felt..."></textarea>
+                </div>
+                <button class="btn btn-primary" style="width: 100%;" onclick="saveGymLog()">Save</button>
+            </div>
+            <div class="section-header">
+                <span class="section-title">History</span>
+            </div>
+            <div id="gymLogHistory"></div>
+        </div>
+    </div>
+
+    <!-- ===== JOBS PAGE ===== -->
+    <div class="page" id="page-jobs">
+        <div class="page-header">
+            <button class="btn btn-ghost" onclick="showPage('home')" style="margin-left: -10px; margin-bottom: 10px;">← Back</button>
+            <h1>📨 Job Applications</h1>
+            <p>Track your applications</p>
+        </div>
+        
+        <button class="btn btn-primary" style="width: 100%; margin-bottom: 20px;" onclick="openAddJob()">
+            + Add Application
+        </button>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="filterJobs('all')">All</button>
+            <button class="tab" onclick="filterJobs('applied')">Applied</button>
+            <button class="tab" onclick="filterJobs('interview')">Interview</button>
+            <button class="tab" onclick="filterJobs('rejected')">Rejected</button>
+        </div>
+        
+        <div id="jobsList"></div>
+    </div>
+
+    <!-- ===== HISTORY PAGE ===== -->
+    <div class="page" id="page-history">
+        <div class="page-header">
+            <h1>📅 History</h1>
+            <p>Review your progress</p>
+        </div>
+        
+        <div id="historyList"></div>
+    </div>
+
+    <!-- ===== SETTINGS PAGE ===== -->
+    <div class="page" id="page-settings">
+        <div class="page-header">
+            <button class="btn btn-ghost" onclick="showPage('home')" style="margin-left: -10px; margin-bottom: 10px;">← Back</button>
+            <h1>⚙️ Settings</h1>
+            <p>Customize your goals</p>
+        </div>
+        
+        <div class="settings-section">
+            <div class="settings-title">Daily Goals</div>
+            <div id="goalSettings"></div>
+        </div>
+        
+        <div class="settings-section">
+            <div class="settings-title">Custom Categories</div>
+            <div id="customCategorySettings"></div>
+            <button class="btn btn-secondary" style="width: 100%; margin-top: 12px;" onclick="openAddCategory()">
+                + Add Category
+            </button>
+        </div>
+        
+        <div class="settings-section">
+            <div class="settings-title">Data</div>
+            <button class="btn btn-secondary" style="width: 100%; margin-bottom: 8px;" onclick="exportData()">
+                📤 Export Data
+            </button>
+            <button class="btn btn-secondary" style="width: 100%; color: var(--accent-red);" onclick="clearAllData()">
+                🗑️ Clear All Data
+            </button>
+        </div>
+    </div>
+
+    <!-- ===== BOTTOM NAVIGATION ===== -->
+    <nav class="bottom-nav">
+        <button class="nav-item active" onclick="showPage('home')">
+            <span>🏠</span>
+            Home
+        </button>
+        <button class="nav-item" onclick="showPage('history')">
+            <span>📅</span>
+            History
+        </button>
+        <button class="nav-item" onclick="showPage('settings')">
+            <span>⚙️</span>
+            Settings
+        </button>
+    </nav>
+
+    <!-- ===== MODALS ===== -->
+    <div class="modal-overlay" id="modalOverlay" onclick="closeModal()"></div>
+    
+    <!-- Add Job Modal -->
+    <div class="modal" id="addJobModal">
+        <div class="modal-handle"></div>
+        <div class="modal-header">
+            <h3>Add Application</h3>
+            <button class="modal-close" onclick="closeModal()">×</button>
+        </div>
+        <div class="input-group">
+            <label class="input-label">Company</label>
+            <input type="text" class="input" id="jobCompany" placeholder="Company name">
+        </div>
+        <div class="input-group">
+            <label class="input-label">Position</label>
+            <input type="text" class="input" id="jobPosition" placeholder="Job title">
+        </div>
+        <div class="input-group">
+            <label class="input-label">Date Applied</label>
+            <input type="date" class="input" id="jobDate">
+        </div>
+        <div class="input-group">
+            <label class="input-label">Status</label>
+            <select class="input" id="jobStatus">
+                <option value="applied">Applied</option>
+                <option value="pending">Waiting Response</option>
+                <option value="interview">Interview</option>
+                <option value="offer">Offer</option>
+                <option value="rejected">Rejected</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <label class="input-label">Notes (optional)</label>
+            <textarea class="input" id="jobNotes" placeholder="Any additional notes..."></textarea>
+        </div>
+        <button class="btn btn-primary" style="width: 100%;" onclick="saveJob()">Save Application</button>
+    </div>
+
+    <!-- Add Category Modal -->
+    <div class="modal" id="addCategoryModal">
+        <div class="modal-handle"></div>
+        <div class="modal-header">
+            <h3>Add Category</h3>
+            <button class="modal-close" onclick="closeModal()">×</button>
+        </div>
+        <div class="input-group">
+            <label class="input-label">Name</label>
+            <input type="text" class="input" id="categoryName" placeholder="e.g., Reading, Meditation">
+        </div>
+        <div class="input-group">
+            <label class="input-label">Emoji</label>
+            <input type="text" class="input" id="categoryEmoji" placeholder="📖" maxlength="2">
+        </div>
+        <div class="input-group">
+            <label class="input-label">Daily Goal</label>
+            <input type="number" class="input" id="categoryGoal" placeholder="e.g., 1" step="0.5">
+        </div>
+        <div class="input-group">
+            <label class="input-label">Unit</label>
+            <input type="text" class="input" id="categoryUnit" placeholder="e.g., hours, pages, minutes">
+        </div>
+        <button class="btn btn-primary" style="width: 100%;" onclick="saveCategory()">Add Category</button>
+    </div>
+
+    <!-- Add Module Modal -->
+    <div class="modal" id="addModuleModal">
+        <div class="modal-handle"></div>
+        <div class="modal-header">
+            <h3>Add Module</h3>
+            <button class="modal-close" onclick="closeModal()">×</button>
+        </div>
+        <div class="input-group">
+            <label class="input-label">Module Name</label>
+            <input type="text" class="input" id="moduleName" placeholder="e.g., Calculus, React Basics">
+        </div>
+        <button class="btn btn-primary" style="width: 100%;" onclick="saveModule()">Add Module</button>
+    </div>
+
+    <!-- Edit Goal Modal -->
+    <div class="modal" id="editGoalModal">
+        <div class="modal-handle"></div>
+        <div class="modal-header">
+            <h3 id="editGoalTitle">Edit Goal</h3>
+            <button class="modal-close" onclick="closeModal()">×</button>
+        </div>
+        <div class="input-group">
+            <label class="input-label">Daily Goal</label>
+            <input type="number" class="input" id="editGoalValue" step="0.5">
+        </div>
+        <button class="btn btn-primary" style="width: 100%;" onclick="saveGoalEdit()">Save</button>
+    </div>
+
+    <!-- Edit Program Modal -->
+    <div class="modal" id="editProgramModal">
+        <div class="modal-handle"></div>
+        <div class="modal-header">
+            <h3>Edit Program</h3>
+            <button class="modal-close" onclick="closeModal()">×</button>
+        </div>
+        <div class="input-group">
+            <label class="input-label">Program Name</label>
+            <input type="text" class="input" id="programName" placeholder="e.g., 5/3/1 BBB">
+        </div>
+        <div class="input-group">
+            <label class="input-label">Start Date</label>
+            <input type="date" class="input" id="programStart">
+        </div>
+        <div class="input-group">
+            <label class="input-label">End Date</label>
+            <input type="date" class="input" id="programEnd">
+        </div>
+        <div class="input-group">
+            <label class="input-label">Description</label>
+            <textarea class="input" id="programDesc" placeholder="Describe your program, split, notes..."></textarea>
+        </div>
+        <button class="btn btn-primary" style="width: 100%;" onclick="saveProgram()">Save Program</button>
+    </div>
+
+    <!-- Edit PR Modal -->
+    <div class="modal" id="editPRModal">
+        <div class="modal-handle"></div>
+        <div class="modal-header">
+            <h3 id="editPRTitle">Update PR</h3>
+            <button class="modal-close" onclick="closeModal()">×</button>
+        </div>
+        <div class="input-group">
+            <label class="input-label">Current PR (kg)</label>
+            <input type="number" class="input" id="prCurrentInput">
+        </div>
+        <div class="input-group">
+            <label class="input-label">Goal (kg)</label>
+            <input type="number" class="input" id="prGoalInput">
+        </div>
+        <button class="btn btn-primary" style="width: 100%;" onclick="savePR()">Save</button>
+    </div>
+
+    <script>
+        // ===== APP STATE =====
+        let appData = {
+            // Daily trackers
+            trackers: {
+                workRemote: { current: 0, goal: 4, unit: 'h', label: 'Remote Work' },
+                workOffice: { current: 0, goal: 4, unit: 'h', label: 'Office Work' },
+                study: { current: 0, goal: 3, unit: 'h', label: 'Study' },
+                water: { current: 0, goal: 8, unit: '', label: 'Water' }
+            },
+            // Custom categories
+            customCategories: [],
+            // Gym
+            gym: {
+                weekDays: [false, false, false, false, false, false, false],
+                weeklyGoal: 4,
+                prs: {
+                    squat: { current: 0, goal: 0 },
+                    bench: { current: 0, goal: 0 },
+                    deadlift: { current: 0, goal: 0 },
+                    ohp: { current: 0, goal: 0 }
+                },
+                program: {
+                    name: '',
+                    startDate: '',
+                    endDate: '',
+                    description: ''
+                },
+                logs: []
+            },
+            // Study
+            study: {
+                modules: [],
+                entries: []
+            },
+            // Jobs
+            jobs: [],
+            // Work notes
+            workNotes: [],
+            // Daily history
+            history: [],
+            // Last saved date
+            lastDate: ''
+        };
+
+        let currentJobFilter = 'all';
+        let editingGoalKey = null;
+        let editingPRKey = null;
+        let selectedGymRating = 0;
+
+        // ===== INITIALIZATION =====
+        function init() {
+            loadData();
+            checkNewDay();
+            updateHomeDate();
+            renderAll();
+            initGymRating();
+        }
+
+        function loadData() {
+            const saved = localStorage.getItem('productivityTracker');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                appData = { ...appData, ...parsed };
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('productivityTracker', JSON.stringify(appData));
+        }
+
+        function checkNewDay() {
+            const today = new Date().toDateString();
+            if (appData.lastDate && appData.lastDate !== today) {
+                // Save yesterday to history
+                saveToHistory(appData.lastDate);
+                // Reset daily values
+                Object.keys(appData.trackers).forEach(key => {
+                    appData.trackers[key].current = 0;
+                });
+                appData.customCategories.forEach(cat => cat.current = 0);
+                // Check new week for gym
+                if (new Date().getDay() === 1) {
+                    appData.gym.weekDays = [false, false, false, false, false, false, false];
+                }
+            }
+            appData.lastDate = today;
+            saveData();
+        }
+
+        function saveToHistory(dateStr) {
+            const entry = {
+                date: dateStr,
+                trackers: JSON.parse(JSON.stringify(appData.trackers)),
+                customCategories: JSON.parse(JSON.stringify(appData.customCategories)),
+                workNotes: appData.workNotes.filter(n => n.date === dateStr),
+                studyEntries: appData.study.entries.filter(e => e.date === dateStr)
+            };
+            appData.history.unshift(entry);
+            if (appData.history.length > 90) appData.history = appData.history.slice(0, 90);
+        }
+
+        function updateHomeDate() {
+            const options = { weekday: 'long', month: 'long', day: 'numeric' };
+            document.getElementById('homeDate').textContent = new Date().toLocaleDateString('en-US', options);
+        }
+
+        // ===== NAVIGATION =====
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(`page-${pageId}`).classList.add('active');
+            
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            const navMap = { home: 0, history: 1, settings: 2 };
+            if (navMap[pageId] !== undefined) {
+                document.querySelectorAll('.nav-item')[navMap[pageId]].classList.add('active');
+            }
+            
+            // Render specific page content
+            if (pageId === 'home') renderHome();
+            if (pageId === 'work') renderWork();
+            if (pageId === 'study') renderStudy();
+            if (pageId === 'gym') renderGym();
+            if (pageId === 'jobs') renderJobs();
+            if (pageId === 'history') renderHistory();
+            if (pageId === 'settings') renderSettings();
+        }
+
+        // ===== RENDER FUNCTIONS =====
+        function renderAll() {
+            renderHome();
+        }
+
+        function renderHome() {
+            // Donut grid
+            const donutGrid = document.getElementById('homeDonutGrid');
+            const workTotal = (appData.trackers.workRemote.current || 0) + (appData.trackers.workOffice.current || 0);
+            const workGoal = appData.trackers.workRemote.goal + appData.trackers.workOffice.goal;
+            
+            let donuts = `
+                <div class="donut-card color-work" onclick="showPage('work')">
+                    <div class="donut-container">
+                        <div class="donut" style="--progress: ${Math.min((workTotal / workGoal) * 100, 100)}; --donut-color: var(--accent-blue);">
+                            <span class="donut-value">${workTotal}h</span>
+                        </div>
+                    </div>
+                    <div class="donut-label">Work</div>
+                    <div class="donut-sublabel">${workGoal}h goal</div>
+                </div>
+                <div class="donut-card color-study" onclick="showPage('study')">
+                    <div class="donut-container">
+                        <div class="donut" style="--progress: ${Math.min((appData.trackers.study.current / appData.trackers.study.goal) * 100, 100)}; --donut-color: var(--accent-purple);">
+                            <span class="donut-value">${appData.trackers.study.current}h</span>
+                        </div>
+                    </div>
+                    <div class="donut-label">Study</div>
+                    <div class="donut-sublabel">${appData.trackers.study.goal}h goal</div>
+                </div>
+            `;
+            
+            // Custom categories donuts
+            appData.customCategories.forEach(cat => {
+                const progress = cat.goal > 0 ? Math.min((cat.current / cat.goal) * 100, 100) : 0;
+                donuts += `
+                    <div class="donut-card color-custom" onclick="openCustomCategoryTracker('${cat.id}')">
+                        <div class="donut-container">
+                            <div class="donut" style="--progress: ${progress}; --donut-color: var(--accent-pink);">
+                                <span class="donut-value">${cat.current}</span>
+                            </div>
+                        </div>
+                        <div class="donut-label">${cat.emoji} ${cat.name}</div>
+                        <div class="donut-sublabel">${cat.goal} ${cat.unit} goal</div>
+                    </div>
+                `;
+            });
+            
+            donutGrid.innerHTML = donuts;
+            
+            // Stats
+            const gymCount = appData.gym.weekDays.filter(Boolean).length;
+            document.getElementById('workStat').textContent = `${workTotal}h today`;
+            document.getElementById('studyStat').textContent = `${appData.trackers.study.current}h today`;
+            document.getElementById('gymStat').textContent = `${gymCount}/${appData.gym.weeklyGoal} this week`;
+            document.getElementById('jobsStat').textContent = `${appData.jobs.length} sent`;
+        }
+
+        function renderWork() {
+            document.getElementById('workRemoteValue').textContent = appData.trackers.workRemote.current;
+            document.getElementById('workOfficeValue').textContent = appData.trackers.workOffice.current;
+            document.getElementById('workRemoteGoal').textContent = `/ ${appData.trackers.workRemote.goal}h`;
+            document.getElementById('workOfficeGoal').textContent = `/ ${appData.trackers.workOffice.goal}h`;
+            
+            // Load today's notes
+            const todayNote = appData.workNotes.find(n => n.date === new Date().toDateString());
+            document.getElementById('workNotes').value = todayNote ? todayNote.text : '';
+        }
+
+        function renderStudy() {
+            document.getElementById('studyValue').textContent = appData.trackers.study.current;
+            document.getElementById('studyGoalDisplay').textContent = `/ ${appData.trackers.study.goal}h`;
+            
+            // Modules dropdown
+            const moduleSelect = document.getElementById('studyModule');
+            moduleSelect.innerHTML = '<option value="">Select module...</option>' +
+                appData.study.modules.map(m => `<option value="${m}">${m}</option>`).join('');
+            
+            // Study history
+            const historyDiv = document.getElementById('studyHistory');
+            const todayEntries = appData.study.entries.filter(e => {
+                const entryDate = new Date(e.date).toDateString();
+                const today = new Date().toDateString();
+                return entryDate === today;
+            });
+            
+            if (todayEntries.length === 0) {
+                historyDiv.innerHTML = '<div class="empty-state"><p>No entries today</p></div>';
+            } else {
+                historyDiv.innerHTML = todayEntries.map(e => `
+                    <div class="card" style="padding: 16px;">
+                        ${e.module ? `<span class="module-chip">${e.module}</span>` : ''}
+                        <p style="color: var(--text-secondary); font-size: 14px; margin-top: 8px;">${e.notes}</p>
+                        <span style="font-size: 12px; color: var(--text-muted);">${new Date(e.timestamp).toLocaleTimeString()}</span>
+                    </div>
+                `).join('');
+            }
+            
+            // Modules list
+            renderModules();
+        }
+
+        function renderModules() {
+            const container = document.getElementById('modulesList');
+            if (appData.study.modules.length === 0) {
+                container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 20px;">No modules yet</p>';
+            } else {
+                container.innerHTML = appData.study.modules.map(m => `
+                    <div class="settings-item">
+                        <span>${m}</span>
+                        <button class="delete-btn" onclick="deleteModule('${m}')">Delete</button>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function renderGym() {
+            // Week dots
+            const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+            document.getElementById('gymWeekDots').innerHTML = appData.gym.weekDays.map((done, i) => `
+                <div class="week-dot ${done ? 'completed' : ''}">${days[i]}</div>
+            `).join('');
+            document.getElementById('gymWeekCount').textContent = appData.gym.weekDays.filter(Boolean).length;
+            
+            // PRs
+            renderPRs();
+            
+            // Program
+            renderProgram();
+            
+            // Logs
+            renderGymLogs();
+        }
+
+        function renderPRs() {
+            const lifts = [
+                { key: 'squat', name: 'Squat', emoji: '🦵' },
+                { key: 'bench', name: 'Bench Press', emoji: '🏋️' },
+                { key: 'deadlift', name: 'Deadlift', emoji: '💀' },
+                { key: 'ohp', name: 'OHP', emoji: '🙆' }
+            ];
+            
+            document.getElementById('prCards').innerHTML = lifts.map(lift => {
+                const pr = appData.gym.prs[lift.key];
+                const progress = pr.goal > 0 ? Math.min((pr.current / pr.goal) * 100, 100) : 0;
+                return `
+                    <div class="card" onclick="openEditPR('${lift.key}')">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <span style="font-size: 24px;">${lift.emoji}</span>
+                                ${lift.name}
+                            </div>
+                            <span style="font-size: 24px; font-weight: 700; color: var(--accent-green);">
+                                ${pr.current || '-'} kg
+                            </span>
+                        </div>
+                        ${pr.goal > 0 ? `
+                            <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">
+                                <span>Goal: ${pr.goal} kg</span>
+                                <span>${Math.round(progress)}%</span>
+                            </div>
+                            <div style="height: 6px; background: var(--bg-elevated); border-radius: 3px; overflow: hidden;">
+                                <div style="height: 100%; width: ${progress}%; background: linear-gradient(90deg, var(--accent-green), var(--accent-cyan)); border-radius: 3px;"></div>
+                            </div>
+                        ` : '<p style="font-size: 12px; color: var(--text-muted);">Tap to set goal</p>'}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderProgram() {
+            const prog = appData.gym.program;
+            let content = '';
+            
+            if (!prog.name) {
+                content = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📋</div>
+                        <p>No program set</p>
+                    </div>
+                `;
+            } else {
+                let progressBar = '';
+                let badge = '';
+                
+                if (prog.startDate && prog.endDate) {
+                    const start = new Date(prog.startDate);
+                    const end = new Date(prog.endDate);
+                    const today = new Date();
+                    const total = (end - start) / (1000 * 60 * 60 * 24);
+                    const elapsed = (today - start) / (1000 * 60 * 60 * 24);
+                    const progress = Math.min(Math.max((elapsed / total) * 100, 0), 100);
+                    const daysLeft = Math.max(Math.ceil((end - today) / (1000 * 60 * 60 * 24)), 0);
+                    
+                    if (daysLeft <= 7 && daysLeft > 0) {
+                        badge = `<span class="badge badge-pending">🔥 ${daysLeft} days left</span>`;
+                    } else if (daysLeft <= 0) {
+                        badge = `<span class="badge badge-interview">✅ Completed</span>`;
+                    } else {
+                        badge = `<span class="badge badge-applied">In Progress</span>`;
+                    }
+                    
+                    progressBar = `
+                        <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary); margin: 16px 0 8px;">
+                            <span>Progress</span>
+                            <span>${Math.round(progress)}%</span>
+                        </div>
+                        <div style="height: 6px; background: var(--bg-elevated); border-radius: 3px; overflow: hidden; margin-bottom: 16px;">
+                            <div style="height: 100%; width: ${progress}%; background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple)); border-radius: 3px;"></div>
+                        </div>
+                    `;
+                }
+                
+                content = `
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                        <div>
+                            <h4 style="font-size: 18px; margin-bottom: 4px;">${prog.name}</h4>
+                            <p style="font-size: 12px; color: var(--text-secondary);">
+                                ${prog.startDate ? formatDate(prog.startDate) : 'No start'} → ${prog.endDate ? formatDate(prog.endDate) : 'No end'}
+                            </p>
+                        </div>
+                        ${badge}
+                    </div>
+                    ${progressBar}
+                    <p style="font-size: 14px; color: var(--text-secondary); white-space: pre-line;">${prog.description || 'No description'}</p>
+                `;
+            }
+            
+            document.getElementById('programCard').innerHTML = content;
+        }
+
+        function renderGymLogs() {
+            const container = document.getElementById('gymLogHistory');
+            const ratingEmojis = ['', '😫', '😐', '🙂', '😊', '🔥'];
+            
+            if (appData.gym.logs.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>No workout logs yet</p></div>';
+                return;
+            }
+            
+            container.innerHTML = appData.gym.logs.slice(0, 20).map(log => `
+                <div class="card" style="padding: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-size: 12px; color: var(--text-muted);">${formatDate(log.date)}</span>
+                        <span style="font-size: 20px;">${ratingEmojis[log.rating] || ''}</span>
+                    </div>
+                    ${log.notes ? `<p style="font-size: 14px; color: var(--text-secondary);">${log.notes}</p>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function initGymRating() {
+            const ratingEmojis = ['😫', '😐', '🙂', '😊', '🔥'];
+            document.getElementById('workoutRating').innerHTML = ratingEmojis.map((emoji, i) => `
+                <button class="tab" onclick="selectGymRating(${i + 1})" id="gymRating${i + 1}">${emoji}</button>
+            `).join('');
+        }
+
+        function selectGymRating(rating) {
+            selectedGymRating = rating;
+            for (let i = 1; i <= 5; i++) {
+                document.getElementById(`gymRating${i}`).classList.toggle('active', i === rating);
+            }
+        }
+
+        function renderJobs() {
+            const container = document.getElementById('jobsList');
+            let filtered = appData.jobs;
+            
+            if (currentJobFilter !== 'all') {
+                filtered = appData.jobs.filter(j => j.status === currentJobFilter);
+            }
+            
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📨</div>
+                        <p>No applications ${currentJobFilter !== 'all' ? 'with this status' : 'yet'}</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = filtered.map((job, index) => `
+                <div class="job-app-item">
+                    <div class="job-app-header">
+                        <div class="job-company">${job.company}</div>
+                        <span class="badge badge-${job.status}">${getStatusLabel(job.status)}</span>
+                    </div>
+                    <div class="job-position">${job.position}</div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span class="job-date">Applied: ${formatDate(job.date)}</span>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-sm btn-secondary" onclick="editJobStatus(${index})">Edit</button>
+                            <button class="btn btn-sm" style="background: rgba(239,68,68,0.1); color: var(--accent-red);" onclick="deleteJob(${index})">Delete</button>
+                        </div>
+                    </div>
+                    ${job.notes ? `<p style="font-size: 13px; color: var(--text-muted); margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-color);">${job.notes}</p>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function renderHistory() {
+            const container = document.getElementById('historyList');
+            
+            if (appData.history.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📅</div>
+                        <p>No history yet. Your progress will be saved here daily.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = appData.history.map(day => {
+                const workTotal = (day.trackers.workRemote?.current || 0) + (day.trackers.workOffice?.current || 0);
+                const studyTotal = day.trackers.study?.current || 0;
+                
+                let customStats = '';
+                if (day.customCategories && day.customCategories.length > 0) {
+                    customStats = day.customCategories.map(cat => `
+                        <div class="history-stat">
+                            <span>${cat.emoji}</span>
+                            <span>${cat.current}${cat.unit}</span>
+                        </div>
+                    `).join('');
+                }
+                
+                return `
+                    <div class="history-date">${formatDateFull(day.date)}</div>
+                    <div class="history-card">
+                        <div class="history-summary">
+                            <div class="history-stat">
+                                💼 <span>${workTotal}h</span> work
+                            </div>
+                            <div class="history-stat">
+                                📚 <span>${studyTotal}h</span> study
+                            </div>
+                            ${customStats}
+                        </div>
+                        ${day.workNotes && day.workNotes.length > 0 ? `
+                            <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-color);">
+                                <p style="font-size: 13px; color: var(--text-secondary);">${day.workNotes[0].text}</p>
+                            </div>
+                        ` : ''}
+                        ${day.studyEntries && day.studyEntries.length > 0 ? `
+                            <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-color);">
+                                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">Study notes:</p>
+                                ${day.studyEntries.map(e => `
+                                    <p style="font-size: 13px; color: var(--text-secondary);">
+                                        ${e.module ? `<span class="module-chip" style="font-size: 11px; padding: 3px 8px;">${e.module}</span>` : ''}
+                                        ${e.notes}
+                                    </p>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderSettings() {
+            // Goal settings
+            const goalSettings = document.getElementById('goalSettings');
+            const allGoals = [
+                { key: 'workRemote', label: '🏠 Remote Work', unit: 'h' },
+                { key: 'workOffice', label: '🏢 Office Work', unit: 'h' },
+                { key: 'study', label: '📚 Study', unit: 'h' },
+                { key: 'gymWeekly', label: '🏋️ Gym (weekly)', unit: 'days' }
+            ];
+            
+            goalSettings.innerHTML = allGoals.map(g => {
+                const value = g.key === 'gymWeekly' ? appData.gym.weeklyGoal : appData.trackers[g.key].goal;
+                return `
+                    <div class="settings-item">
+                        <div class="settings-item-label">
+                            <span>${g.label}</span>
+                        </div>
+                        <button class="btn btn-sm btn-secondary" onclick="openEditGoal('${g.key}')">${value} ${g.unit}</button>
+                    </div>
+                `;
+            }).join('');
+            
+            // Custom category settings
+            const customSettings = document.getElementById('customCategorySettings');
+            if (appData.customCategories.length === 0) {
+                customSettings.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 16px;">No custom categories</p>';
+            } else {
+                customSettings.innerHTML = appData.customCategories.map(cat => `
+                    <div class="settings-item">
+                        <div class="settings-item-label">
+                            <span>${cat.emoji} ${cat.name}</span>
+                            <span style="color: var(--text-muted); font-size: 12px; margin-left: 8px;">${cat.goal} ${cat.unit}</span>
+                        </div>
+                        <button class="delete-btn" onclick="deleteCategory('${cat.id}')">Delete</button>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // ===== TRACKER UPDATES =====
+        function updateTracker(key, delta) {
+            if (appData.trackers[key]) {
+                appData.trackers[key].current = Math.max(0, appData.trackers[key].current + delta);
+                saveData();
+                
+                // Update UI
+                const valueEl = document.getElementById(`${key}Value`);
+                if (valueEl) valueEl.textContent = appData.trackers[key].current;
+                
+                // Haptic feedback on goal reached
+                if (appData.trackers[key].current === appData.trackers[key].goal && delta > 0) {
+                    if (navigator.vibrate) navigator.vibrate(100);
+                }
+                
+                renderHome();
+            }
+        }
+
+        function updateCustomTracker(id, delta) {
+            const cat = appData.customCategories.find(c => c.id === id);
+            if (cat) {
+                cat.current = Math.max(0, cat.current + delta);
+                saveData();
+                renderHome();
+                
+                // Update modal if open
+                const valueEl = document.getElementById('customTrackerValue');
+                if (valueEl) valueEl.textContent = cat.current;
+                
+                if (cat.current === cat.goal && delta > 0) {
+                    if (navigator.vibrate) navigator.vibrate(100);
+                }
+            }
+        }
+
+        // ===== GYM FUNCTIONS =====
+        function markGymDay() {
+            const today = new Date().getDay();
+            const idx = today === 0 ? 6 : today - 1;
+            
+            if (!appData.gym.weekDays[idx]) {
+                appData.gym.weekDays[idx] = true;
+                saveData();
+                renderGym();
+                renderHome();
+                if (navigator.vibrate) navigator.vibrate(100);
+            }
+        }
+
+        function saveGymLog() {
+            if (selectedGymRating === 0) {
+                alert('Please select a rating');
+                return;
+            }
+            
+            appData.gym.logs.unshift({
+                date: new Date().toISOString(),
+                rating: selectedGymRating,
+                notes: document.getElementById('gymLogNotes').value
+            });
+            
+            if (appData.gym.logs.length > 100) {
+                appData.gym.logs = appData.gym.logs.slice(0, 100);
+            }
+            
+            saveData();
+            renderGymLogs();
+            
+            // Reset form
+            selectedGymRating = 0;
+            document.querySelectorAll('#workoutRating .tab').forEach(t => t.classList.remove('active'));
+            document.getElementById('gymLogNotes').value = '';
+            
+            if (navigator.vibrate) navigator.vibrate(100);
+        }
+
+        function switchGymTab(tab) {
+            document.querySelectorAll('#page-gym .tabs .tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            ['week', 'prs', 'program', 'log'].forEach(t => {
+                document.getElementById(`gym-tab-${t}`).style.display = t === tab ? 'block' : 'none';
+            });
+        }
+
+        // ===== WORK FUNCTIONS =====
+        function saveWorkNotes() {
+            const notes = document.getElementById('workNotes').value;
+            const today = new Date().toDateString();
+            
+            const existingIdx = appData.workNotes.findIndex(n => n.date === today);
+            if (existingIdx >= 0) {
+                appData.workNotes[existingIdx].text = notes;
+            } else {
+                appData.workNotes.push({ date: today, text: notes });
+            }
+            
+            saveData();
+            if (navigator.vibrate) navigator.vibrate(50);
+            alert('Notes saved!');
+        }
+
+        function switchWorkTab(tab) {
+            document.querySelectorAll('#page-work .tabs .tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            document.getElementById('work-tab-log').style.display = tab === 'log' ? 'block' : 'none';
+            document.getElementById('work-tab-stats').style.display = tab === 'stats' ? 'block' : 'none';
+        }
+
+        // ===== STUDY FUNCTIONS =====
+        function saveStudyEntry() {
+            const module = document.getElementById('studyModule').value;
+            const notes = document.getElementById('studyNotes').value;
+            
+            if (!notes.trim()) {
+                alert('Please add some notes about what you learned');
+                return;
+            }
+            
+            appData.study.entries.unshift({
+                date: new Date().toDateString(),
+                timestamp: new Date().toISOString(),
+                module: module,
+                notes: notes
+            });
+            
+            if (appData.study.entries.length > 200) {
+                appData.study.entries = appData.study.entries.slice(0, 200);
+            }
+            
+            saveData();
+            
+            document.getElementById('studyNotes').value = '';
+            document.getElementById('studyModule').value = '';
+            
+            renderStudy();
+            if (navigator.vibrate) navigator.vibrate(50);
+        }
+
+        function switchStudyTab(tab) {
+            document.querySelectorAll('#page-study .tabs .tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            document.getElementById('study-tab-log').style.display = tab === 'log' ? 'block' : 'none';
+            document.getElementById('study-tab-modules').style.display = tab === 'modules' ? 'block' : 'none';
+        }
+
+        // ===== JOB FUNCTIONS =====
+        function openAddJob() {
+            document.getElementById('jobCompany').value = '';
+            document.getElementById('jobPosition').value = '';
+            document.getElementById('jobDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('jobStatus').value = 'applied';
+            document.getElementById('jobNotes').value = '';
+            openModal('addJobModal');
+        }
+
+        function saveJob() {
+            const company = document.getElementById('jobCompany').value.trim();
+            const position = document.getElementById('jobPosition').value.trim();
+            
+            if (!company || !position) {
+                alert('Please fill in company and position');
+                return;
+            }
+            
+            appData.jobs.unshift({
+                company: company,
+                position: position,
+                date: document.getElementById('jobDate').value,
+                status: document.getElementById('jobStatus').value,
+                notes: document.getElementById('jobNotes').value
+            });
+            
+            saveData();
+            closeModal();
+            renderJobs();
+            renderHome();
+            if (navigator.vibrate) navigator.vibrate(50);
+        }
+
+        function filterJobs(status) {
+            currentJobFilter = status;
+            document.querySelectorAll('#page-jobs .tabs .tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            renderJobs();
+        }
+
+        function editJobStatus(index) {
+            const job = appData.jobs[index];
+            const newStatus = prompt('Enter new status (applied, pending, interview, offer, rejected):', job.status);
+            if (newStatus && ['applied', 'pending', 'interview', 'offer', 'rejected'].includes(newStatus)) {
+                appData.jobs[index].status = newStatus;
+                saveData();
+                renderJobs();
+            }
+        }
+
+        function deleteJob(index) {
+            if (confirm('Delete this application?')) {
+                appData.jobs.splice(index, 1);
+                saveData();
+                renderJobs();
+                renderHome();
+            }
+        }
+
+        function getStatusLabel(status) {
+            const labels = {
+                applied: 'Applied',
+                pending: 'Waiting',
+                interview: 'Interview',
+                offer: 'Offer',
+                rejected: 'Rejected'
+            };
+            return labels[status] || status;
+        }
+
+        // ===== MODAL FUNCTIONS =====
+        function openModal(modalId) {
+            document.getElementById('modalOverlay').classList.add('active');
+            document.getElementById(modalId).classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.remove('active');
+            document.querySelectorAll('.modal').forEach(m => m.classList.remove('active'));
+        }
+
+        // ===== CATEGORY FUNCTIONS =====
+        function openAddCategory() {
+            document.getElementById('categoryName').value = '';
+            document.getElementById('categoryEmoji').value = '';
+            document.getElementById('categoryGoal').value = '';
+            document.getElementById('categoryUnit').value = '';
+            openModal('addCategoryModal');
+        }
+
+        function saveCategory() {
+            const name = document.getElementById('categoryName').value.trim();
+            const emoji = document.getElementById('categoryEmoji').value.trim() || '📌';
+            const goal = parseFloat(document.getElementById('categoryGoal').value) || 1;
+            const unit = document.getElementById('categoryUnit').value.trim() || 'times';
+            
+            if (!name) {
+                alert('Please enter a name');
+                return;
+            }
+            
+            appData.customCategories.push({
+                id: Date.now().toString(),
+                name: name,
+                emoji: emoji,
+                goal: goal,
+                unit: unit,
+                current: 0
+            });
+            
+            saveData();
+            closeModal();
+            renderHome();
+            renderSettings();
+            if (navigator.vibrate) navigator.vibrate(50);
+        }
+
+        function deleteCategory(id) {
+            if (confirm('Delete this category?')) {
+                appData.customCategories = appData.customCategories.filter(c => c.id !== id);
+                saveData();
+                renderHome();
+                renderSettings();
+            }
+        }
+
+        function openCustomCategoryTracker(id) {
+            const cat = appData.customCategories.find(c => c.id === id);
+            if (!cat) return;
+            
+            // Create a temporary modal for tracking
+            const modalHTML = `
+                <div class="modal-handle"></div>
+                <div class="modal-header">
+                    <h3>${cat.emoji} ${cat.name}</h3>
+                    <button class="modal-close" onclick="closeModal()">×</button>
+                </div>
+                <div class="card" style="margin-bottom: 0;">
+                    <div class="card-header">
+                        <span style="color: var(--text-secondary);">Goal: ${cat.goal} ${cat.unit}</span>
+                    </div>
+                    <div class="counter">
+                        <button class="counter-btn minus" onclick="updateCustomTracker('${id}', -0.5)">−</button>
+                        <div class="counter-value">
+                            <span id="customTrackerValue">${cat.current}</span>
+                            <span class="counter-unit">${cat.unit}</span>
+                        </div>
+                        <button class="counter-btn plus" onclick="updateCustomTracker('${id}', 0.5)">+</button>
+                    </div>
+                </div>
+            `;
+            
+            // Reuse addCategoryModal temporarily
+            const modal = document.getElementById('addCategoryModal');
+            const originalContent = modal.innerHTML;
+            modal.innerHTML = modalHTML;
+            openModal('addCategoryModal');
+            
+            // Restore original content when closed
+            document.getElementById('modalOverlay').onclick = () => {
+                closeModal();
+                setTimeout(() => modal.innerHTML = originalContent, 300);
+            };
+        }
+
+        // ===== MODULE FUNCTIONS =====
+        function openAddModule() {
+            document.getElementById('moduleName').value = '';
+            openModal('addModuleModal');
+        }
+
+        function saveModule() {
+            const name = document.getElementById('moduleName').value.trim();
+            if (!name) {
+                alert('Please enter a module name');
+                return;
+            }
+            
+            if (!appData.study.modules.includes(name)) {
+                appData.study.modules.push(name);
+                saveData();
+            }
+            
+            closeModal();
+            renderStudy();
+            if (navigator.vibrate) navigator.vibrate(50);
+        }
+
+        function deleteModule(name) {
+            if (confirm(`Delete module "${name}"?`)) {
+                appData.study.modules = appData.study.modules.filter(m => m !== name);
+                saveData();
+                renderModules();
+            }
+        }
+
+        // ===== GOAL EDITING =====
+        function openEditGoal(key) {
+            editingGoalKey = key;
+            let value, title;
+            
+            if (key === 'gymWeekly') {
+                value = appData.gym.weeklyGoal;
+                title = 'Gym Weekly Goal';
+            } else {
+                value = appData.trackers[key].goal;
+                title = appData.trackers[key].label + ' Goal';
+            }
+            
+            document.getElementById('editGoalTitle').textContent = title;
+            document.getElementById('editGoalValue').value = value;
+            openModal('editGoalModal');
+        }
+
+        function saveGoalEdit() {
+            const value = parseFloat(document.getElementById('editGoalValue').value);
+            if (!value || value <= 0) {
+                alert('Please enter a valid goal');
+                return;
+            }
+            
+            if (editingGoalKey === 'gymWeekly') {
+                appData.gym.weeklyGoal = value;
+            } else {
+                appData.trackers[editingGoalKey].goal = value;
+            }
+            
+            saveData();
+            closeModal();
+            renderSettings();
+            renderHome();
+            
+            // Update specific page if visible
+            if (document.getElementById('page-work').classList.contains('active')) renderWork();
+            if (document.getElementById('page-study').classList.contains('active')) renderStudy();
+            
+            if (navigator.vibrate) navigator.vibrate(50);
+        }
+
+        // ===== PR EDITING =====
+        function openEditPR(key) {
+            editingPRKey = key;
+            const names = { squat: 'Squat', bench: 'Bench Press', deadlift: 'Deadlift', ohp: 'OHP' };
+            
+            document.getElementById('editPRTitle').textContent = names[key] + ' PR';
+            document.getElementById('prCurrentInput').value = appData.gym.prs[key].current || '';
+            document.getElementById('prGoalInput').value = appData.gym.prs[key].goal || '';
+            openModal('editPRModal');
+        }
+
+        function savePR() {
+            const current = parseFloat(document.getElementById('prCurrentInput').value) || 0;
+            const goal = parseFloat(document.getElementById('prGoalInput').value) || 0;
+            
+            appData.gym.prs[editingPRKey].current = current;
+            appData.gym.prs[editingPRKey].goal = goal;
+            
+            saveData();
+            closeModal();
+            renderPRs();
+            
+            if (navigator.vibrate) navigator.vibrate(50);
+        }
+
+        // ===== PROGRAM EDITING =====
+        function openEditProgram() {
+            document.getElementById('programName').value = appData.gym.program.name || '';
+            document.getElementById('programStart').value = appData.gym.program.startDate || '';
+            document.getElementById('programEnd').value = appData.gym.program.endDate || '';
+            document.getElementById('programDesc').value = appData.gym.program.description || '';
+            openModal('editProgramModal');
+        }
+
+        function saveProgram() {
+            appData.gym.program = {
+                name: document.getElementById('programName').value.trim(),
+                startDate: document.getElementById('programStart').value,
+                endDate: document.getElementById('programEnd').value,
+                description: document.getElementById('programDesc').value.trim()
+            };
+            
+            saveData();
+            closeModal();
+            renderProgram();
+            
+            if (navigator.vibrate) navigator.vibrate(50);
+        }
+
+        // ===== DATA MANAGEMENT =====
+        function exportData() {
+            const dataStr = JSON.stringify(appData, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `productivity-tracker-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            
+            URL.revokeObjectURL(url);
+        }
+
+        function clearAllData() {
+            if (confirm('Are you sure you want to delete ALL data? This cannot be undone.')) {
+                if (confirm('Really delete everything?')) {
+                    localStorage.removeItem('productivityTracker');
+                    location.reload();
+                }
+            }
+        }
+
+        // ===== UTILITIES =====
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        }
+
+        function formatDateFull(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+        }
+
+        // ===== INIT =====
+        init();
+    </script>
+</body>
+</html>
